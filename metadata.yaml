@@ -2,7 +2,7 @@ homepage: "https://cookiebeam.com"
 documentation: "https://cookiebeam.com/guides/gtm-integration"
 versions:
   - sha: 1d16bfa2f5c4f82bd61a91d356ca9eceb24ad8c5
-    changeNotes: "Microsoft UET and Clarity consent defaults follow the regional table, functionality_storage can be restored as denied, and stored choices are restored only when Google Consent Mode is on in the banner settings."
+    changeNotes: "UET and Clarity consent defaults added (on by default, follow regional table); banner sends actual choices. Consent restore can deny functionality_storage; needs Consent Mode on in banner settings. Older banners' consent restored on load. Adds developer ID, environment, EU/EEA/UK to country codes, Banner ID normalization, permissions for developer ID, environment URL, UET/Clarity queues, diagnostics."
   - sha: a7427a7f24ba3525987af2d9d06f82d4657aae10
     changeNotes: "Ignore identity-only pending consent records until the visitor makes an explicit choice."
   - sha: fcc233594b60131f75151474eab3021378ed4ab9
