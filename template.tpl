@@ -268,6 +268,7 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 
+const copyFromWindow = require('copyFromWindow');
 const createArgumentsQueue = require('createArgumentsQueue');
 const createQueue = require('createQueue');
 const getCookieValues = require('getCookieValues');
@@ -316,7 +317,7 @@ const setInWindow = require('setInWindow');
 // Anything else is skipped and GTM keeps its defaults until the banner script
 // loads. A change that this format cannot express must use a new field or
 // cookie name, so that this template skips it.
-const TEMPLATE_VERSION = '3.6.1';
+const TEMPLATE_VERSION = '3.6.2';
 const RESTORE_CONTRACT = 1;
 const COOKIE_NAME = 'cb_cookie';
 
@@ -382,12 +383,23 @@ const expandRegions = (regionStr) => {
   return out;
 };
 
+// The banner snippet sets __cb_directConsentDefaults
+// after setting the Consent Mode default. If it already
+// ran, skip the tag's own default to avoid a duplicate.
+let snippetSetDefaults = false;
+if (queryPermission('access_globals', 'read', '__cb_directConsentDefaults')) {
+  const snippetMarker = copyFromWindow('__cb_directConsentDefaults');
+  snippetSetDefaults = getType(snippetMarker) === 'string' && snippetMarker !== '';
+}
+
 if (enableGoogleConsentMode) {
   // CookieBeam's Google tag Developer ID. The banner
   // script sets the same key and value, so repeating it is harmless.
   gtagSet('developer_id.dNjhjNT', true);
   gtagSet({ 'url_passthrough': urlPassthrough });
+}
 
+if (enableGoogleConsentMode && !snippetSetDefaults) {
   let hasGlobalDefault = false;
 
   for (let i = 0; i < regionSettings.length; i++) {
@@ -583,6 +595,7 @@ if (queryPermission('access_globals', 'readwrite', '__cookiebeam_gtm_template'))
     restoreContract: RESTORE_CONTRACT,
     restore: restoreResult,
     restoredState: restored || null,
+    defaults: enableGoogleConsentMode ? (snippetSetDefaults ? 'snippet' : 'tag') : 'off',
     googleConsentMode: enableGoogleConsentMode,
     customDefaults: regionSettings.length > 0,
     waitForUpdate: waitForUpdate,
@@ -1128,6 +1141,45 @@ ___WEB_PERMISSIONS___
                     "boolean": false
                   }
                 ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "__cb_directConsentDefaults"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
               }
             ]
           }
@@ -1329,15 +1381,25 @@ scenarios:
     runCode(mockData);
 
     assertApi('updateConsentState').wasNotCalled();
+- name: the snippet already set the default so the tag sets none
+  code: |-
+    mock('copyFromWindow', (key) => key === '__cb_directConsentDefaults' ? mockData.bannerId : undefined);
+
+    runCode(mockData);
+
+    assertApi('setDefaultConsentState').wasNotCalled();
+    assertApi('gtagSet').wasCalledWith('developer_id.dNjhjNT', true);
+    assertApi('injectScript').wasCalled();
 - name: the template reports its version and result to the diagnostics variable
   code: |-
     runCode(mockData);
 
     assertApi('setInWindow').wasCalledWith('__cookiebeam_gtm_template', {
-      version: '3.6.1',
+      version: '3.6.2',
       restoreContract: 1,
       restore: 'no_cookie',
       restoredState: null,
+      defaults: 'tag',
       googleConsentMode: true,
       customDefaults: false,
       waitForUpdate: 2000,
@@ -1609,6 +1671,9 @@ setup: |-
   // Ensure permission check passes
   mock('queryPermission', () => true);
 
+  // No snippet page variable unless a scenario provides one
+  mock('copyFromWindow', () => undefined);
+
   // No consent cookie unless a scenario provides one
   mock('getCookieValues', () => []);
 
@@ -1620,7 +1685,7 @@ setup: |-
 
 ___NOTES___
 
-CookieBeam Consent Mode v3.6.1
+CookieBeam Consent Mode v3.6.2
 
 Google Consent Mode v2 and Microsoft UET and Clarity consent integration for CookieBeam. This template handles Google tags and sets Microsoft UET and Clarity consent defaults; consent signals for other platforms (Meta, etc.) are sent by the CookieBeam banner script.
 
@@ -1639,6 +1704,11 @@ What this template does:
 5. Loads the CookieBeam banner script (asynchronous).
 
 When a stored choice is restored, consent state is resolved before any queued Google tag fires.
+
+v3.6.2 changes:
+- When the CookieBeam banner snippet has already set the Consent Mode default on the page, the tag detects it and does not set a second default. This avoids a brief double-default when both install methods are present. If the snippet has not run, the tag sets the default as before.
+- The diagnostics global now includes a defaults field: "tag" when the tag set the default, "snippet" when the snippet had already set it, or "off" when Google Consent Mode is disabled in the tag.
+- New read-only permission for the page variable used by the snippet to signal that the default is already set.
 
 v3.6.1 changes:
 - The diagnostics global (window.__cookiebeam_gtm_template) now requests both read and write permission. In v3.6.0 only write was requested, which caused GTM to block the tag.
