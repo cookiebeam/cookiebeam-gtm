@@ -1,6 +1,8 @@
 homepage: "https://cookiebeam.com"
 documentation: "https://cookiebeam.com/guides/gtm-integration"
 versions:
+  - sha: b3dec9baf0005e02c4fe73ccd81318a5f99a2e42
+    changeNotes: "Fix diagnostics global permission (read and write) and skip the write when permission is unavailable."
   - sha: 1d16bfa2f5c4f82bd61a91d356ca9eceb24ad8c5
     changeNotes: "UET and Clarity consent defaults added (on by default, follow regional table); banner sends actual choices. Consent restore can deny functionality_storage; needs Consent Mode on in banner settings. Older banners' consent restored on load. Adds developer ID, environment, EU/EEA/UK to country codes, Banner ID normalization, permissions for developer ID, environment URL, UET/Clarity queues, diagnostics."
   - sha: a7427a7f24ba3525987af2d9d06f82d4657aae10
