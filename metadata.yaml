@@ -1,6 +1,8 @@
 homepage: "https://cookiebeam.com"
 documentation: "https://cookiebeam.com/guides/gtm-integration"
 versions:
+  - sha: 349ad5436ac20a35931c696ed99194491363b7bd
+    changeNotes: "Skip the consent default when the CookieBeam snippet already set one, and report which path set it in the diagnostics global."
   - sha: b3dec9baf0005e02c4fe73ccd81318a5f99a2e42
     changeNotes: "Fix diagnostics global permission (read and write) and skip the write when permission is unavailable."
   - sha: 1d16bfa2f5c4f82bd61a91d356ca9eceb24ad8c5
