@@ -316,7 +316,7 @@ const setInWindow = require('setInWindow');
 // Anything else is skipped and GTM keeps its defaults until the banner script
 // loads. A change that this format cannot express must use a new field or
 // cookie name, so that this template skips it.
-const TEMPLATE_VERSION = '3.6.0';
+const TEMPLATE_VERSION = '3.6.1';
 const RESTORE_CONTRACT = 1;
 const COOKIE_NAME = 'cb_cookie';
 
@@ -557,21 +557,6 @@ if (microsoftClarityDefault) {
   }
 }
 
-// Write the template version and restore result to a diagnostics variable.
-// Nothing reads this today; it exists for future troubleshooting.
-if (queryPermission('access_globals', 'write', '__cookiebeam_gtm_template')) {
-  setInWindow('__cookiebeam_gtm_template', {
-    version: TEMPLATE_VERSION,
-    restoreContract: RESTORE_CONTRACT,
-    restore: restoreResult,
-    restoredState: restored || null,
-    googleConsentMode: enableGoogleConsentMode,
-    customDefaults: regionSettings.length > 0,
-    waitForUpdate: waitForUpdate,
-    environment: environmentSlug
-  }, true);
-}
-
 if (bannerId) {
   const variantPath = environmentSlug ? 'env/' + encodeUriComponent(environmentSlug) : 'default';
   const scriptUrl = 'https://cdn.cookiebeam.com/banner/' + encodeUriComponent(bannerId) + '/' + variantPath + '/loader-gtm.js';
@@ -587,6 +572,22 @@ if (bannerId) {
   }
 } else {
   data.gtmOnFailure();
+}
+
+// Write the template version and restore result to a diagnostics variable.
+// Nothing reads this today; it exists for future troubleshooting. It runs
+// after the loader is requested, so it can never stop the banner loading.
+if (queryPermission('access_globals', 'readwrite', '__cookiebeam_gtm_template')) {
+  setInWindow('__cookiebeam_gtm_template', {
+    version: TEMPLATE_VERSION,
+    restoreContract: RESTORE_CONTRACT,
+    restore: restoreResult,
+    restoredState: restored || null,
+    googleConsentMode: enableGoogleConsentMode,
+    customDefaults: regionSettings.length > 0,
+    waitForUpdate: waitForUpdate,
+    environment: environmentSlug
+  }, true);
 }
 
 
@@ -999,7 +1000,7 @@ ___WEB_PERMISSIONS___
                   },
                   {
                     "type": 8,
-                    "boolean": false
+                    "boolean": true
                   },
                   {
                     "type": 8,
@@ -1333,7 +1334,7 @@ scenarios:
     runCode(mockData);
 
     assertApi('setInWindow').wasCalledWith('__cookiebeam_gtm_template', {
-      version: '3.6.0',
+      version: '3.6.1',
       restoreContract: 1,
       restore: 'no_cookie',
       restoredState: null,
@@ -1619,7 +1620,7 @@ setup: |-
 
 ___NOTES___
 
-CookieBeam Consent Mode v3.6.0
+CookieBeam Consent Mode v3.6.1
 
 Google Consent Mode v2 and Microsoft UET and Clarity consent integration for CookieBeam. This template handles Google tags and sets Microsoft UET and Clarity consent defaults; consent signals for other platforms (Meta, etc.) are sent by the CookieBeam banner script.
 
@@ -1638,6 +1639,10 @@ What this template does:
 5. Loads the CookieBeam banner script (asynchronous).
 
 When a stored choice is restored, consent state is resolved before any queued Google tag fires.
+
+v3.6.1 changes:
+- The diagnostics global (window.__cookiebeam_gtm_template) now requests both read and write permission. In v3.6.0 only write was requested, which caused GTM to block the tag.
+- The tag skips the diagnostics write when the permission is not available instead of failing.
 
 v3.6.0 changes:
 - The v3.5.0 Microsoft Consent Mode option (UET and Clarity, off by default) is replaced by two separate defaults, both on by default. The defaults follow the regional table: granted only when the table includes a global default and every usable row grants the type, otherwise denied. UET: ad_storage. Clarity: ad_storage and analytics_storage. When a stored choice is restored, the restored values are sent to both (a value missing from the stored choice is sent as denied). The CookieBeam banner script sends the visitor's actual UET and Clarity consent when it loads, unless Microsoft signals are turned off in the banner's settings (on by default).
